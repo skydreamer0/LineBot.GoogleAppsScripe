@@ -97,11 +97,25 @@
                 showLoading();
                 showStatus('初始化中...', false);
 
-                await liff.init({ liffId: '2006512831-Rx8jdrGd' });
+                await liff.init({ 
+                    liffId: '2006512831-Rx8jdrGd',
+                    withLoginOnExternalBrowser: true
+                });
                 
                 if (!liff.isLoggedIn()) {
                     showStatus('準備進行 LINE 登入...', false);
-                    liff.login();
+                    liff.login({
+                        scope: 'profile openid chat_message.write'
+                    });
+                    return;
+                }
+
+                const accessToken = liff.getAccessToken();
+                if (!accessToken) {
+                    showStatus('需要重新授權...', false);
+                    liff.login({
+                        scope: 'profile openid chat_message.write'
+                    });
                     return;
                 }
 
@@ -110,7 +124,7 @@
                 
                 const message = {
                     type: 'text',
-                    text: `使用者資料：\n名稱：${profile.displayName}\nID：${profile.userId}`
+                    text: `會員驗證成功！\n名稱：${profile.displayName}`
                 };
                 
                 await liff.sendMessages([message]);
@@ -122,7 +136,13 @@
 
             } catch (error) {
                 console.error('Error:', error);
-                showStatus('發生錯誤：' + error.message, true);
+                let errorMessage = '發生錯誤：';
+                if (error.code) {
+                    errorMessage += `[${error.code}] `;
+                }
+                errorMessage += error.message || '未知錯誤';
+                
+                showStatus(errorMessage, true);
                 hideLoading();
             }
         }

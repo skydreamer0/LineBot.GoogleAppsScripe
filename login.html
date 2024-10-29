@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>會員驗證</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+    <script>
+        liff.init({ liffId: 'your_liff_id' })
+            .then(() => {
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                } else {
+                    liff.getProfile()
+                        .then(profile => {
+                            // 取得用戶資料後，呼叫 Google Apps Script 的 Web App
+                            const scriptUrl = 'your_web_app_url';
+                            fetch(`${scriptUrl}?userId=${profile.userId}&displayName=${profile.displayName}`)
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        liff.closeWindow();
+                                    }
+                                });
+                        });
+                }
+            });
+    </script>
+</body>
+</html> 

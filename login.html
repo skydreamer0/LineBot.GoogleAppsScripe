@@ -7,7 +7,7 @@
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
         const LIFF_ID = '2006512890-9qPNzGRJ';
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzG8Bbkn5imskgD7LuRHlCp6wMGRXWwQwe6ygUHBNNiF4a7X5USrGN7bchXmSJJB36F/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/你的Apps_Script_ID/exec';
     </script>
     <style>
         body {
@@ -132,6 +132,7 @@
                 try {
                     const response = await fetch(SCRIPT_URL, {
                         method: 'POST',
+                        mode: 'cors',
                         headers: {
                             'Content-Type': 'application/json',
                         },

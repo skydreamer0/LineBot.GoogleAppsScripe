@@ -122,17 +122,42 @@
                 showStatus('正在獲取用戶資料...', false);
                 const profile = await liff.getProfile();
                 
-                const message = {
-                    type: 'text',
-                    text: `會員驗證成功！\n名稱：${profile.displayName}`
-                };
-                
-                await liff.sendMessages([message]);
-                
-                showStatus('驗證成功！即將關閉視窗...', false);
-                setTimeout(() => {
-                    liff.closeWindow();
-                }, 2000);
+                const scriptUrl = 'https://script.google.com/macros/s/AKfycbzqbFjtUz4S_k7fM_KYCRNnNFzb-5izWc9CverbO4yYSLrs3c4jv68EGniDkD4aiA2v/exec'; // 替換為您的 Apps Script 網頁應用程式 URL
+                try {
+                    const response = await fetch(scriptUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            type: 'liff_auth',
+                            userId: profile.userId,
+                            displayName: profile.displayName,
+                            pictureUrl: profile.pictureUrl,
+                            statusMessage: profile.statusMessage
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('資料儲存失敗');
+                    }
+
+                    const message = {
+                        type: 'text',
+                        text: `會員驗證成功！\n名稱：${profile.displayName}`
+                    };
+                    
+                    await liff.sendMessages([message]);
+                    
+                    showStatus('驗證成功！即將關閉視窗...', false);
+                    setTimeout(() => {
+                        liff.closeWindow();
+                    }, 2000);
+
+                } catch (error) {
+                    showStatus('資料儲存失敗：' + error.message, true);
+                    hideLoading();
+                }
 
             } catch (error) {
                 console.error('Error:', error);

@@ -10,19 +10,30 @@
         // 初始配置
         let CONFIG = {
             LIFF_ID: '{{ liff_id }}',  // 從後端獲取的 LIFF ID
-            API_BASE_URL: '',
+            API_BASE_URL: '',          // 留空，等待從後端獲取
             POLLING_INTERVAL: 3000,
-            QUICK_REPLIES: [],
+            QUICK_REPLIES: [
+                '@主選單',
+                '@會員功能',
+                '@召喚AI',
+                '@查詢訂單',
+                '@產品資訊',
+                '@聯絡客服',
+                '@常見問題',
+                '@加入會員',
+                '@使用說明',
+                '@幫助'
+            ],
             TYPING_DELAY: 1000,
-            DEFAULT_AVATAR: ''
+            DEFAULT_AVATAR: ''         // 留空，等待從後端獲取
         };
 
         // API 端點
         const API_ENDPOINTS = {
-            CONFIG: '/api/config',
-            CHAT_HISTORY: (userId) => `/api/chat_history/${userId}`,
-            NEW_MESSAGES: (userId, lastId) => `/api/new_messages/${userId}?last_id=${lastId}`,
-            SEND_MESSAGE: '/api/send_message'
+            CONFIG: `${CONFIG.API_BASE_URL}/api/config`,
+            CHAT_HISTORY: (userId) => `${CONFIG.API_BASE_URL}/api/chat_history/${userId}`,
+            NEW_MESSAGES: (userId, lastId) => `${CONFIG.API_BASE_URL}/api/new_messages/${userId}?last_id=${lastId}`,
+            SEND_MESSAGE: `${CONFIG.API_BASE_URL}/api/send_message`
         };
     </script>
 
@@ -259,8 +270,12 @@
             methods: {
                 async loadConfig() {
                     try {
-                        const response = await axios.get(API_ENDPOINTS.CONFIG);
-                        CONFIG = { ...CONFIG, ...response.data };
+                        const response = await fetch('/api/config');
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const config = await response.json();
+                        CONFIG = { ...CONFIG, ...config };
                         this.quickReplies = CONFIG.QUICK_REPLIES;
                         // 設置 axios 的基礎 URL
                         axios.defaults.baseURL = CONFIG.API_BASE_URL;

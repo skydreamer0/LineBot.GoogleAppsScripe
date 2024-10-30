@@ -7,10 +7,13 @@
 
     <!-- 配置區域 -->
     <script>
+        // 從後端獲取的配置
+        const BACKEND_URL = '{{ backend_url }}';  // 從模板變量獲取後端 URL
+
         // 初始配置
         let CONFIG = {
-            LIFF_ID: '2006516227-Pz2A79bk',  // 直接使用你的 LIFF ID
-            API_BASE_URL: 'httpshttps://76e7-2402-7500-56b-fa9f-2963-8a39-e3c7-23dc.ngrok-free.app',  // 使用你的 ngrok URL
+            LIFF_ID: '{{ liff_id }}',  // 從後端獲取的 LIFF ID
+            API_BASE_URL: BACKEND_URL,  // 使用後端傳來的 URL
             POLLING_INTERVAL: 3000,
             QUICK_REPLIES: [
                 '@主選單',
@@ -33,6 +36,10 @@
             NEW_MESSAGES: (userId, lastId) => `${CONFIG.API_BASE_URL}/api/new_messages/${userId}?last_id=${lastId}`,
             SEND_MESSAGE: `${CONFIG.API_BASE_URL}/api/send_message`
         };
+
+        // 在控制台輸出配置信息（用於調試）
+        console.log('後端 URL:', BACKEND_URL);
+        console.log('API 配置:', CONFIG);
     </script>
 
     <!-- 外部資源 -->
@@ -267,7 +274,12 @@
             methods: {
                 async loadConfig() {
                     try {
-                        // 直接初始化 LIFF，不再嘗試獲取配置
+                        if (!CONFIG.API_BASE_URL) {
+                            throw new Error('後端 URL 未設置');
+                        }
+                        console.log('使用後端 URL:', CONFIG.API_BASE_URL);
+                        
+                        // 直接初始化 LIFF
                         await this.initializeLiff();
                     } catch (err) {
                         console.error('初始化失敗:', err);

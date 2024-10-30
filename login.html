@@ -9,8 +9,8 @@
     <script>
         // 初始配置
         let CONFIG = {
-            LIFF_ID: '2006516227-Pz2A79bk',
-            API_BASE_URL: null,  // 先設為 null，等待從 API 獲取
+            LIFF_ID: '2006516227-Pz2A79bk',  // 直接寫死 LIFF ID
+            API_BASE_URL: '{{ api_base_url }}',  // 從後端傳遞的 URL
             POLLING_INTERVAL: 3000,
             QUICK_REPLIES: [
                 '@主選單',
@@ -27,44 +27,16 @@
             TYPING_DELAY: 1000
         };
 
-        // 嘗試從 ngrok API 獲取 URL
-        async function loadApiConfig() {
-            try {
-                // 先嘗試從 ngrok API 獲取 URL
-                const ngrokResponse = await fetch('http://localhost:4040/api/tunnels');
-                if (ngrokResponse.ok) {
-                    const ngrokData = await ngrokResponse.json();
-                    if (ngrokData.tunnels && ngrokData.tunnels.length > 0) {
-                        CONFIG.API_BASE_URL = ngrokData.tunnels[0].public_url;
-                        console.log('成功從 ngrok 獲取 URL:', CONFIG.API_BASE_URL);
-                        
-                        // 設置 API 端點
-                        API_ENDPOINTS.CHAT_HISTORY = (userId) => `${CONFIG.API_BASE_URL}/api/chat_history/${userId}`;
-                        API_ENDPOINTS.NEW_MESSAGES = (userId, lastId) => `${CONFIG.API_BASE_URL}/api/new_messages/${userId}?last_id=${lastId}`;
-                        API_ENDPOINTS.SEND_MESSAGE = `${CONFIG.API_BASE_URL}/api/send_message`;
-                        
-                        return true;
-                    }
-                }
-                throw new Error('無法從 ngrok 獲取 URL');
-            } catch (err) {
-                console.error('載入 API 配置時發生錯誤:', err);
-                // 如果無法從 ngrok 獲取，使用備用 URL
-                CONFIG.API_BASE_URL = 'http://localhost:5000';  // 本地開發用
-                console.log('使用備用 URL:', CONFIG.API_BASE_URL);
-                return false;
-            }
-        }
-
         // API 端點
         const API_ENDPOINTS = {
-            CHAT_HISTORY: null,
-            NEW_MESSAGES: null,
-            SEND_MESSAGE: null
+            CHAT_HISTORY: (userId) => `${CONFIG.API_BASE_URL}/api/chat_history/${userId}`,
+            NEW_MESSAGES: (userId, lastId) => `${CONFIG.API_BASE_URL}/api/new_messages/${userId}?last_id=${lastId}`,
+            SEND_MESSAGE: `${CONFIG.API_BASE_URL}/api/send_message`
         };
 
         // 在控制台輸出配置信息（用於調試）
-        console.log('初始配置:', CONFIG);
+        console.log('後端 URL:', CONFIG.API_BASE_URL);
+        console.log('API 配置:', CONFIG);
     </script>
 
     <!-- 外部資源 -->
@@ -284,7 +256,6 @@
         new Vue({
             el: '#app',
             data: {
-                liffId: '{{ liff_id }}',
                 messages: [],
                 newMessage: '',
                 isTyping: false,
@@ -292,7 +263,7 @@
                 error: null,
                 userProfile: null,
                 isReady: false,
-                quickReplies: [],
+                quickReplies: CONFIG.QUICK_REPLIES,
                 lastMessageId: null,
                 pollingInterval: null
             },
@@ -432,18 +403,8 @@
                 }
             },
             mounted() {
-                // 先載入 API 配置，再初始化其他功能
-                loadApiConfig().then((success) => {
-                    if (success) {
-                        console.log('成功載入 API 配置，使用 URL:', CONFIG.API_BASE_URL);
-                    } else {
-                        console.warn('使用備用 URL:', CONFIG.API_BASE_URL);
-                    }
-                    this.loadConfig();
-                }).catch(err => {
-                    console.error('配置載入失敗:', err);
-                    this.error = '無法連接到後端服務';
-                });
+                // 直接開始載入配置
+                this.loadConfig();
             },
             beforeDestroy() {
                 if (this.pollingInterval) {

@@ -1,196 +1,396 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>會員驗證</title>
-    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <title>LINE 客服對話</title>
+
+    <!-- 配置區域 -->
     <script>
-        const LIFF_ID = '2006512890-9qPNzGRJ';
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwYdfSlBBYK23bQMBIc8kFn5B27IOhYA0Nr-AWKJJgCJncuTWzISFJBwb5z1jKAOwqW/exec';
+        // 初始配置
+        let CONFIG = {
+            LIFF_ID: '{{ liff_id }}',  // 從後端獲取的 LIFF ID
+            API_BASE_URL: '',
+            POLLING_INTERVAL: 3000,
+            QUICK_REPLIES: [],
+            TYPING_DELAY: 1000,
+            DEFAULT_AVATAR: ''
+        };
+
+        // API 端點
+        const API_ENDPOINTS = {
+            CONFIG: '/api/config',
+            CHAT_HISTORY: (userId) => `/api/chat_history/${userId}`,
+            NEW_MESSAGES: (userId, lastId) => `/api/new_messages/${userId}?last_id=${lastId}`,
+            SEND_MESSAGE: '/api/send_message'
+        };
     </script>
+
+    <!-- 外部資源 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <!-- 其餘樣式保持不變 -->
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            margin: 0;
+        .chat-container {
+            max-width: 800px;
+            margin: 0 auto;
             padding: 20px;
-            background-color: #f7f7f7;
+        }
+
+        .chat-window {
+            height: calc(100vh - 200px);
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            background: #f8f9fa;
+            margin-bottom: 20px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            max-width: 80%;
+        }
+
+        .message-user {
+            margin-left: auto;
+            background-color: #007bff;
+            color: white;
+            border-radius: 15px 15px 0 15px;
+            padding: 10px 15px;
+        }
+
+        .message-admin {
+            margin-right: auto;
+            background-color: #e9ecef;
+            color: #212529;
+            border-radius: 15px 15px 15px 0;
+            padding: 10px 15px;
+        }
+
+        .message-input {
             display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+            gap: 10px;
         }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            max-width: 400px;
-            width: 100%;
-            text-align: center;
+
+        .message-input input {
+            flex-grow: 1;
+            border-radius: 20px;
+            padding: 10px 20px;
+            border: 1px solid #ddd;
         }
-        .loading {
-            display: none;
-            margin: 20px 0;
-        }
-        .loading-spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #00B900;
+
+        .send-button {
             border-radius: 50%;
             width: 40px;
             height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+
+        .typing-indicator {
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 15px;
+            display: inline-block;
+            margin-bottom: 15px;
         }
-        .status {
-            margin: 20px 0;
-            padding: 15px;
-            border-radius: 8px;
-            display: none;
+
+        .dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #777;
+            animation: wave 1.3s linear infinite;
+            margin-right: 3px;
         }
-        .success {
-            background-color: #e7f7e7;
-            color: #28a745;
+
+        .dot:nth-child(2) { animation-delay: -1.1s; }
+        .dot:nth-child(3) { animation-delay: -0.9s; }
+
+        @keyframes wave {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
         }
-        .error {
-            background-color: #ffebee;
-            color: #dc3545;
-        }
-        h1 {
-            color: #1e1e1e;
+
+        .user-info {
+            text-align: center;
             margin-bottom: 20px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
         }
-        p {
-            color: #666;
-            line-height: 1.6;
+
+        .user-info img {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin-bottom: 10px;
+        }
+
+        .quick-replies {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .quick-reply {
+            background: #e9ecef;
+            border: none;
+            border-radius: 15px;
+            padding: 5px 15px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .quick-reply:hover {
+            background: #dee2e6;
+        }
+
+        .error-message {
+            color: #dc3545;
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+
+        @media (max-width: 576px) {
+            .chat-container {
+                padding: 10px;
+            }
+
+            .message {
+                max-width: 90%;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>LINE 會員驗證</h1>
-        <p>正在進行身分驗證，請稍候...</p>
-        <div class="loading">
-            <div class="loading-spinner"></div>
+    <div id="app">
+        <div class="chat-container">
+            <!-- 用戶資訊區域 -->
+            <div v-if="userProfile" class="user-info">
+                <img :src="userProfile.pictureUrl" :alt="userProfile.displayName">
+                <h5>{{ userProfile.displayName }}</h5>
+            </div>
+
+            <!-- 錯誤訊息顯示 -->
+            <div v-if="error" class="error-message">
+                {{ error }}
+            </div>
+
+            <!-- 聊天視窗 -->
+            <div class="chat-window" ref="chatWindow">
+                <div v-if="loading" class="loading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">載入中...</span>
+                    </div>
+                </div>
+                
+                <template v-else>
+                    <div v-for="(message, index) in messages" :key="index"
+                         :class="['message', message.isUser ? 'message-user' : 'message-admin']">
+                        {{ message.content }}
+                    </div>
+                    
+                    <div v-if="isTyping" class="typing-indicator">
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- 快速回覆選項 -->
+            <div class="quick-replies" v-if="quickReplies.length > 0">
+                <button v-for="(reply, index) in quickReplies" 
+                        :key="index"
+                        class="quick-reply"
+                        @click="sendQuickReply(reply)">
+                    {{ reply }}
+                </button>
+            </div>
+
+            <!-- 訊息輸入區 -->
+            <div class="message-input">
+                <input type="text" 
+                       v-model="newMessage" 
+                       @keyup.enter="sendMessage"
+                       placeholder="輸入訊息..."
+                       :disabled="!isReady">
+                <button class="btn btn-primary send-button" 
+                        @click="sendMessage"
+                        :disabled="!isReady || !newMessage.trim()">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
         </div>
-        <div id="statusMessage" class="status"></div>
     </div>
 
     <script>
-        const showLoading = () => {
-            document.querySelector('.loading').style.display = 'block';
-        };
-
-        const hideLoading = () => {
-            document.querySelector('.loading').style.display = 'none';
-        };
-
-        const showStatus = (message, isError = false) => {
-            const statusElement = document.getElementById('statusMessage');
-            statusElement.textContent = message;
-            statusElement.style.display = 'block';
-            statusElement.className = `status ${isError ? 'error' : 'success'}`;
-        };
-
-        async function main() {
-            try {
-                showLoading();
-                showStatus('初始化中...', false);
-
-                await liff.init({ 
-                    liffId: LIFF_ID,
-                    withLoginOnExternalBrowser: true
-                }).catch(err => {
-                    console.error('LIFF 初始化錯誤:', err);
-                    showStatus(`LIFF 初始化錯誤: ${err.message}`, true);
-                });
-                
-                if (!liff.isLoggedIn()) {
-                    showStatus('準備進行 LINE 登入...', false);
-                    liff.login({
-                        scope: 'profile openid chat_message.write'
-                    });
-                    return;
-                }
-
-                const accessToken = liff.getAccessToken();
-                if (!accessToken) {
-                    showStatus('需要重新授權...', false);
-                    liff.login({
-                        scope: 'profile openid chat_message.write'
-                    });
-                    return;
-                }
-
-                showStatus('正在獲取用戶資料...', false);
-                const profile = await liff.getProfile();
-                
-                try {
-                    const response = await fetch(SCRIPT_URL, {
-                        method: 'POST',
-                        mode: 'cors',
-                        credentials: 'omit',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            type: 'liff_auth',
-                            userId: profile.userId,
-                            displayName: profile.displayName,
-                            pictureUrl: profile.pictureUrl,
-                            statusMessage: profile.statusMessage
-                        })
-                    });
-
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(`HTTP 錯誤 ${response.status}: ${errorText}`);
+        new Vue({
+            el: '#app',
+            data: {
+                liffId: '{{ liff_id }}',
+                messages: [],
+                newMessage: '',
+                isTyping: false,
+                loading: true,
+                error: null,
+                userProfile: null,
+                isReady: false,
+                quickReplies: [],
+                lastMessageId: null,
+                pollingInterval: null
+            },
+            methods: {
+                async loadConfig() {
+                    try {
+                        const response = await axios.get(API_ENDPOINTS.CONFIG);
+                        CONFIG = { ...CONFIG, ...response.data };
+                        this.quickReplies = CONFIG.QUICK_REPLIES;
+                        // 設置 axios 的基礎 URL
+                        axios.defaults.baseURL = CONFIG.API_BASE_URL;
+                        // 初始化 LIFF
+                        await this.initializeLiff();
+                    } catch (err) {
+                        this.error = '載入配置失敗: ' + err.message;
+                        this.loading = false;
                     }
+                },
 
-                    const responseData = await response.json();
-                    if (!responseData.success) {
-                        throw new Error(responseData.message || '資料儲存失敗');
+                async initializeLiff() {
+                    try {
+                        await liff.init({ liffId: CONFIG.LIFF_ID });
+                        if (!liff.isLoggedIn()) {
+                            liff.login();
+                        } else {
+                            this.userProfile = await liff.getProfile();
+                            if (!this.userProfile.pictureUrl) {
+                                this.userProfile.pictureUrl = CONFIG.DEFAULT_AVATAR;
+                            }
+                            this.isReady = true;
+                            this.loading = false;
+                            this.startMessagePolling();
+                            this.loadChatHistory();
+                        }
+                    } catch (err) {
+                        this.error = '初始化 LIFF 時發生錯誤: ' + err.message;
+                        this.loading = false;
                     }
+                },
 
-                    const message = {
-                        type: 'text',
-                        text: `會員驗證成功！\n名稱：${profile.displayName}`
-                    };
-                    
-                    await liff.sendMessages([message]);
-                    
-                    showStatus('驗證成功！即將關閉視窗...', false);
-                    setTimeout(() => {
-                        liff.closeWindow();
-                    }, 2000);
+                async loadChatHistory() {
+                    try {
+                        const response = await axios.get(
+                            API_ENDPOINTS.CHAT_HISTORY(this.userProfile.userId)
+                        );
+                        this.messages = response.data.map(msg => ({
+                            content: msg.content,
+                            isUser: !msg.is_from_admin
+                        }));
+                        if (response.data.length > 0) {
+                            this.lastMessageId = response.data[response.data.length - 1].id;
+                        }
+                        this.scrollToBottom();
+                    } catch (err) {
+                        console.error('載入聊天記錄失敗:', err);
+                    }
+                },
 
-                } catch (error) {
-                    console.error('API 錯誤:', error);
-                    showStatus('資料儲存失敗：' + error.message, true);
-                    hideLoading();
+                startMessagePolling() {
+                    this.pollingInterval = setInterval(async () => {
+                        if (this.lastMessageId) {
+                            try {
+                                const response = await axios.get(
+                                    API_ENDPOINTS.NEW_MESSAGES(
+                                        this.userProfile.userId,
+                                        this.lastMessageId
+                                    )
+                                );
+                                if (response.data.length > 0) {
+                                    const newMessages = response.data.map(msg => ({
+                                        content: msg.content,
+                                        isUser: !msg.is_from_admin
+                                    }));
+                                    this.messages.push(...newMessages);
+                                    this.lastMessageId = response.data[response.data.length - 1].id;
+                                    this.scrollToBottom();
+                                }
+                            } catch (err) {
+                                console.error('輪詢新消息失敗:', err);
+                            }
+                        }
+                    }, CONFIG.POLLING_INTERVAL);
+                },
+
+                async sendMessage() {
+                    if (!this.newMessage.trim() || !this.isReady) return;
+
+                    const messageContent = this.newMessage.trim();
+                    this.messages.push({
+                        content: messageContent,
+                        isUser: true
+                    });
+                    this.newMessage = '';
+                    this.scrollToBottom();
+
+                    try {
+                        this.isTyping = true;
+                        const response = await axios.post(API_ENDPOINTS.SEND_MESSAGE, {
+                            user_id: this.userProfile.userId,
+                            content: messageContent
+                        });
+
+                        if (response.data.reply) {
+                            setTimeout(() => {
+                                this.messages.push({
+                                    content: response.data.reply,
+                                    isUser: false
+                                });
+                                this.scrollToBottom();
+                                this.isTyping = false;
+                            }, CONFIG.TYPING_DELAY);
+                        }
+                    } catch (err) {
+                        this.error = '發送訊息失敗: ' + err.message;
+                        this.isTyping = false;
+                    }
+                },
+
+                sendQuickReply(reply) {
+                    this.newMessage = reply;
+                    this.sendMessage();
+                },
+
+                scrollToBottom() {
+                    this.$nextTick(() => {
+                        const chatWindow = this.$refs.chatWindow;
+                        chatWindow.scrollTop = chatWindow.scrollHeight;
+                    });
                 }
-
-            } catch (error) {
-                console.error('Error:', error);
-                let errorMessage = '發生錯誤：';
-                if (error.code) {
-                    errorMessage += `[${error.code}] `;
+            },
+            mounted() {
+                this.loadConfig();  // 改為先載入配置
+            },
+            beforeDestroy() {
+                if (this.pollingInterval) {
+                    clearInterval(this.pollingInterval);
                 }
-                errorMessage += error.message || '未知錯誤';
-                
-                showStatus(errorMessage, true);
-                hideLoading();
             }
-        }
-
-        main().catch(error => {
-            console.error('Main error:', error);
-            showStatus('程式執行錯誤：' + error.message, true);
-            hideLoading();
         });
     </script>
 </body>

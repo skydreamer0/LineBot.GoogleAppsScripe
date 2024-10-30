@@ -270,18 +270,27 @@
             methods: {
                 async loadConfig() {
                     try {
-                        const response = await fetch('/api/config');
+                        // 使用完整的 URL
+                        const configUrl = window.location.origin + '/api/config';
+                        console.log('正在加載配置，URL:', configUrl);  // 添加日誌
+                        
+                        const response = await fetch(configUrl);
                         if (!response.ok) {
                             throw new Error(`HTTP error! status: ${response.status}`);
                         }
                         const config = await response.json();
+                        console.log('成功加載配置:', config);  // 添加日誌
+                        
                         CONFIG = { ...CONFIG, ...config };
                         this.quickReplies = CONFIG.QUICK_REPLIES;
+                        
                         // 設置 axios 的基礎 URL
                         axios.defaults.baseURL = CONFIG.API_BASE_URL;
+                        
                         // 初始化 LIFF
                         await this.initializeLiff();
                     } catch (err) {
+                        console.error('載入配置失敗:', err);  // 添加詳細錯誤日誌
                         this.error = '載入配置失敗: ' + err.message;
                         this.loading = false;
                     }

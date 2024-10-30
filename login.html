@@ -376,7 +376,17 @@
                             }, CONFIG.TYPING_DELAY);
                         }
                     } catch (err) {
-                        this.error = '發送訊息失敗: ' + err.message;
+                        console.error('發送訊息失敗:', err);
+                        let errorMessage = '發送訊息失敗';
+                        if (err.response) {
+                            errorMessage += `: ${err.response.status} - ${err.response.statusText}`;
+                            console.error('錯誤詳情:', err.response.data);
+                        } else if (err.request) {
+                            errorMessage += ': 無法連接到伺服器';
+                        } else {
+                            errorMessage += `: ${err.message}`;
+                        }
+                        this.error = errorMessage;
                         this.isTyping = false;
                     }
                 },

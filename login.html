@@ -10,7 +10,7 @@
         // 初始配置
         let CONFIG = {
             LIFF_ID: '{{ liff_id }}',  // 從後端獲取的 LIFF ID
-            API_BASE_URL: '',          // 將在 loadConfig 中設置
+            API_BASE_URL: window.location.origin,  // 使用當前網站的 origin
             POLLING_INTERVAL: 3000,
             QUICK_REPLIES: [
                 '@主選單',
@@ -24,12 +24,15 @@
                 '@使用說明',
                 '@幫助'
             ],
-            TYPING_DELAY: 1000,
-            DEFAULT_AVATAR: ''
+            TYPING_DELAY: 1000
         };
 
-        // API 端點會在 loadConfig 後更新
-        let API_ENDPOINTS = {};
+        // API 端點
+        const API_ENDPOINTS = {
+            CHAT_HISTORY: (userId) => `/api/chat_history/${userId}`,
+            NEW_MESSAGES: (userId, lastId) => `/api/new_messages/${userId}?last_id=${lastId}`,
+            SEND_MESSAGE: `/api/send_message`
+        };
     </script>
 
     <!-- 外部資源 -->
@@ -187,9 +190,8 @@
 <body>
     <div id="app">
         <div class="chat-container">
-            <!-- 用戶資訊區域 -->
+            <!-- ��戶資訊區域 -->
             <div v-if="userProfile" class="user-info">
-                <img :src="userProfile.pictureUrl" :alt="userProfile.displayName">
                 <h5>{{ userProfile.displayName }}</h5>
             </div>
 
@@ -265,37 +267,11 @@
             methods: {
                 async loadConfig() {
                     try {
-                        // 直接從 ngrok 獲取配置
-                        const ngrokResponse = await fetch('http://localhost:4040/api/tunnels');
-                        const tunnels = await ngrokResponse.json();
-                        
-                        if (tunnels.tunnels && tunnels.tunnels.length > 0) {
-                            const ngrokUrl = tunnels.tunnels[0].public_url;
-                            console.log('獲取到 ngrok URL:', ngrokUrl);
-                            
-                            // 設置配置
-                            CONFIG.API_BASE_URL = ngrokUrl;
-                            CONFIG.DEFAULT_AVATAR = `${ngrokUrl}/static/default-avatar.png`;
-                            
-                            // 更新 API 端點
-                            API_ENDPOINTS = {
-                                CONFIG: `${ngrokUrl}/api/config`,
-                                CHAT_HISTORY: (userId) => `${ngrokUrl}/api/chat_history/${userId}`,
-                                NEW_MESSAGES: (userId, lastId) => `${ngrokUrl}/api/new_messages/${userId}?last_id=${lastId}`,
-                                SEND_MESSAGE: `${ngrokUrl}/api/send_message`
-                            };
-                            
-                            // 設置 axios 的基礎 URL
-                            axios.defaults.baseURL = ngrokUrl;
-                            
-                            // 初始化 LIFF
-                            await this.initializeLiff();
-                        } else {
-                            throw new Error('無法獲取 ngrok URL');
-                        }
+                        // 直接初始化 LIFF，不再從 ngrok 獲取配置
+                        await this.initializeLiff();
                     } catch (err) {
-                        console.error('載入配置失敗:', err);
-                        this.error = '載入配置失敗: ' + err.message;
+                        console.error('初始化失敗:', err);
+                        this.error = '初始化失敗: ' + err.message;
                         this.loading = false;
                     }
                 },
@@ -307,9 +283,6 @@
                             liff.login();
                         } else {
                             this.userProfile = await liff.getProfile();
-                            if (!this.userProfile.pictureUrl) {
-                                this.userProfile.pictureUrl = CONFIG.DEFAULT_AVATAR;
-                            }
                             this.isReady = true;
                             this.loading = false;
                             this.startMessagePolling();

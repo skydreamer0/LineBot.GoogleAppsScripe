@@ -7,13 +7,10 @@
 
     <!-- 配置區域 -->
     <script>
-        // 從後端獲取的配置
-        const BACKEND_URL = '{{ backend_url }}';  // 從模板變量獲取後端 URL
-
         // 初始配置
         let CONFIG = {
-            LIFF_ID: '{{ liff_id }}',  // 從後端獲取的 LIFF ID
-            API_BASE_URL: BACKEND_URL,  // 使用後端傳來的 URL
+            LIFF_ID: '2006516227-Pz2A79bk',  // 直接寫死 LIFF ID
+            API_BASE_URL: '{{ backend_url }}',  // 從後端獲取的 URL
             POLLING_INTERVAL: 3000,
             QUICK_REPLIES: [
                 '@主選單',
@@ -38,7 +35,7 @@
         };
 
         // 在控制台輸出配置信息（用於調試）
-        console.log('後端 URL:', BACKEND_URL);
+        console.log('後端 URL:', CONFIG.API_BASE_URL);
         console.log('API 配置:', CONFIG);
     </script>
 

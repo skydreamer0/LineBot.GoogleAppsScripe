@@ -27,11 +27,11 @@
             TYPING_DELAY: 1000
         };
 
-        // 修改 API 端點定義
+        // API 端點定義
         const API_ENDPOINTS = {
-            CHAT_HISTORY: (userId) => `${CONFIG.API_BASE_URL}/api/chat_history/${userId}`,
-            NEW_MESSAGES: (userId, lastId) => `${CONFIG.API_BASE_URL}/api/new_messages/${userId}?last_id=${lastId}`,
-            SEND_MESSAGE: `${CONFIG.API_BASE_URL}/api/send_message`
+            CHAT_HISTORY: (userId) => `${CONFIG.API_BASE_URL}/liff/api/chat_history/${userId}`,
+            NEW_MESSAGES: (userId, lastId) => `${CONFIG.API_BASE_URL}/liff/api/new_messages/${userId}?last_id=${lastId}`,
+            SEND_MESSAGE: `${CONFIG.API_BASE_URL}/liff/api/send_message`
         };
 
         // 在控制台輸出配置信息（用於調試）
@@ -359,12 +359,16 @@
 
                     try {
                         this.isTyping = true;
-                        const response = await axios.post(API_ENDPOINTS.SEND_MESSAGE, {
-                            user_id: this.userProfile.userId,
-                            content: messageContent
-                        }, {
+                        const response = await axios({
+                            method: 'post',
+                            url: API_ENDPOINTS.SEND_MESSAGE,
+                            data: {
+                                user_id: this.userProfile.userId,
+                                content: messageContent
+                            },
                             headers: {
-                                'Content-Type': 'application/json'
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
                             }
                         });
 
